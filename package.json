@@ -1,0 +1,28 @@
+{
+  "name": "lookspeak",
+  "version": "0.1.0",
+  "description": "Type and speak with your eyes using any webcam, in the browser, offline.",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test \"test/*.test.ts\"",
+    "typecheck": "tsc --noEmit",
+    "bench": "node scripts/bench.ts",
+    "e2e": "node e2e/smoke.mjs",
+    "serve": "node scripts/serve.mjs"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "1.2.3",
+    "@types/node": "^26.6.6"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "puppeteer-core": "^24.0.0",
+    "typescript": "^5.9.0"
+  },
+  "engines": {
+    "node": ">=22.18"
+  }
+}
