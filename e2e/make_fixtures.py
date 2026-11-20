@@ -1,3 +1,15 @@
+"""Builds the four test frames in fixtures/.
+
+Source photo: NASA portrait of Neil Armstrong (public domain),
+https://commons.wikimedia.org/wiki/File:Neil_Armstrong_pose.jpg, 960 px version,
+cropped to (390, 180, 790, 480) and scaled to 640x480 as face.png.
+out.json holds MediaPipe face landmarks for face.png (normalized x, y per point).
+
+For each eye the script paints the eye opening with the sclera color, then pastes the
+original iris disk shifted by dx, dy iris radii, clipped to the eyelids. MediaPipe's
+blendshapes read the results as looking left/right/up (see README, "How it is tested").
+Needs numpy and Pillow. Not run in CI; the outputs are committed.
+"""
 import json, sys, numpy as np
 from PIL import Image, ImageDraw
 im = Image.open('face.png').convert('RGB'); W, H = im.size
@@ -21,5 +33,9 @@ def make(dx, dy, name):
         moved = (xx-cx-sx)**2 + (yy-cy-sy)**2 <= (r*1.05)**2
         ys, xs = np.nonzero(moved & m)
         out[ys, xs] = src[np.clip((ys-sy).round().astype(int),0,H-1), np.clip((xs-sx).round().astype(int),0,W-1)]
-    Image.fromarray(out.clip(0,255).astype(np.uint8)).save(name)
-make(0,0,'g_center.png'); make(-0.9,0,'g_imgleft.png'); make(0.9,0,'g_imgright.png'); make(0,-0.6,'g_up.png')
+    Image.fromarray(out.clip(0,255).astype(np.uint8)).save(name, quality=88)
+# the subject's own left is the right side of an unmirrored camera image
+make(0, 0, 'fixtures/center.jpg')
+make(0.9, 0, 'fixtures/look-left.jpg')
+make(-0.9, 0, 'fixtures/look-right.jpg')
+make(0, -0.6, 'fixtures/look-up.jpg')

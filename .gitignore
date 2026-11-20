@@ -5,3 +5,4 @@ public/vendor/
 .env
 .DS_Store
 e2e/last-run.png
+e2e/demo.webm
