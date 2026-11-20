@@ -255,7 +255,7 @@ async function main() {
     }
   });
   requestAnimationFrame(loop);
-  if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js");
+  if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) navigator.serviceWorker.register("sw.js");
   // read-only hook for the end-to-end test
   (window as unknown as { lookspeak: unknown }).lookspeak = { stats, get text() { return typer.text; }, get tracker() { return tracker?.delegate ?? null; } };
 }

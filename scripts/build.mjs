@@ -24,6 +24,7 @@ await fetchModel();
 rmSync("dist", { recursive: true, force: true });
 cpSync("public", "dist", { recursive: true });
 cpSync("data/words.txt", "dist/words.txt");
+for (const f of ["LICENSE", "THIRD_PARTY.md"]) cpSync(f, join("dist", f));
 mkdirSync("dist/vendor/wasm", { recursive: true });
 const wasmDir = "node_modules/@mediapipe/tasks-vision/wasm";
 for (const f of readdirSync(wasmDir)) if (f.startsWith("vision_wasm_internal")) cpSync(join(wasmDir, f), join("dist/vendor/wasm", f));
