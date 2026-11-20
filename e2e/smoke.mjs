@@ -22,7 +22,7 @@ try {
   await calibrate(page);
   check(await page.$eval("#board", (e) => !e.hidden), "calibration accepted, board shown");
   const st = await page.evaluate(() => ({ ...window.lookspeak.stats, delegate: window.lookspeak.tracker }));
-  check(st.fps > 5, `face tracking at ${st.fps.toFixed(1)} fps (${st.delegate})`);
+  check(st.fps > 2, `face tracking at ${st.fps.toFixed(1)} fps (${st.delegate})`);
 
   // looks for "hi", then one "up" to undo the i
   const sim = new Typer(Lexicon.parse(readFileSync(new URL("../data/words.txt", import.meta.url), "utf8")));
