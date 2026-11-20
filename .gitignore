@@ -6,3 +6,4 @@ public/vendor/
 .DS_Store
 e2e/last-run.png
 e2e/demo.webm
+e2e/frames/
