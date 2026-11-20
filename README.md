@@ -2,7 +2,7 @@
 
 Type and speak with your eyes using the webcam you already have. It runs in the browser, works offline after the first visit, and no video leaves your device.
 
-**Try it: https://tahakocpinar.github.io/lookspeak/** (Chrome, Edge or Firefox on a laptop or desktop with a webcam)
+**Try it: https://tahakocp.github.io/lookspeak/** (Chrome, Edge or Firefox on a laptop or desktop with a webcam)
 
 ![lookspeak typing "i need water" by gaze, then speaking it](docs/demo.gif)
 
@@ -35,7 +35,7 @@ Also on the board:
 
 ## Setup
 
-1. Open the [demo page](https://tahakocpinar.github.io/lookspeak/) and allow the camera.
+1. Open the [demo page](https://tahakocp.github.io/lookspeak/) and allow the camera.
 2. Pick "Use my eyes". Keep your head still and follow the dot: center, left, center, right, center, top, center (about 17 seconds).
 3. Type. Recalibrate whenever the light changes or the laptop moves.
 
@@ -43,7 +43,7 @@ Tips from testing the classifier: sit about an arm's length from the camera, fac
 
 ### Offline or self-hosted
 
-After the first visit the page, the 3.7 MB face model and the word list are cached, and it opens without a network. To run it on a machine that is never online, download the `-web.zip` file from the [latest release](https://github.com/TahaKocpinar/lookspeak/releases/latest), unzip it and serve the folder on localhost (browsers only allow the camera on `https://` or `localhost`):
+After the first visit the page, the 3.7 MB face model and the word list are cached, and it opens without a network. To run it on a machine that is never online, download the `-web.zip` file from the [latest release](https://github.com/tahakocp/lookspeak/releases/latest), unzip it and serve the folder on localhost (browsers only allow the camera on `https://` or `localhost`):
 
 ```sh
 cd lookspeak-v0.1.1-web && python3 -m http.server 8080   # then open http://localhost:8080
@@ -52,7 +52,7 @@ cd lookspeak-v0.1.1-web && python3 -m http.server 8080   # then open http://loca
 ### Build from source
 
 ```sh
-git clone https://github.com/TahaKocpinar/lookspeak && cd lookspeak
+git clone https://github.com/tahakocp/lookspeak && cd lookspeak
 npm ci && npm run build && npm run serve
 ```
 
@@ -69,7 +69,7 @@ npm ci && npm run build && npm run serve
 
 The e2e photos are a public-domain NASA portrait with the irises cut out and moved by 0.9 iris radii ([e2e/make_fixtures.py](e2e/make_fixtures.py)). MediaPipe's gaze blendshapes read them as expected (horizontal score +0.22 straight ahead, +0.80 looking left, -0.53 looking right; vertical +0.06 to +0.23 looking up), which lets the test drive the real pipeline without a person.
 
-What has not been tested: real people, real webcams, glasses, low light, nystagmus or other eye conditions, and head mode on a moving head (its math has a unit test; the photos cannot turn). Looking up is the weakest direction in the photos and will likely be the weakest for some users. If you try it, please [open an "I tried it" issue](https://github.com/TahaKocpinar/lookspeak/issues/new?template=tried-it.md), whether it worked or not.
+What has not been tested: real people, real webcams, glasses, low light, nystagmus or other eye conditions, and head mode on a moving head (its math has a unit test; the photos cannot turn). Looking up is the weakest direction in the photos and will likely be the weakest for some users. If you try it, please [open an "I tried it" issue](https://github.com/tahakocp/lookspeak/issues/new?template=tried-it.md), whether it worked or not.
 
 ## Privacy
 
