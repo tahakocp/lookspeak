@@ -61,3 +61,23 @@ test("10% wrong choices still finish every sentence", () => {
   const r = typeAll(lex, ["hello how are you", "please call my wife"], { errorRate: 0.1, seed: 7 });
   assert.ok(r.perChar > 0);
 });
+
+test("quick phrases speak in one go and only show on an empty line", () => {
+  const t = new Typer(lex);
+  select(t, "phrases");
+  assert.ok(t.inPhrases);
+  let ev;
+  for (const c of pathTo(t.node, "p:0")!) ev = t.choose(c);
+  assert.equal(ev!.kind, "spoke");
+  assert.equal(ev!.text, "yes");
+  assert.ok(!t.inPhrases);
+  select(t, "c:a");
+  assert.ok(!t.items().some((i) => i.id === "phrases"));
+});
+
+test("up leaves the phrase list", () => {
+  const t = new Typer(lex);
+  select(t, "phrases");
+  t.choose("up");
+  assert.ok(!t.inPhrases);
+});

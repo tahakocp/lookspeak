@@ -10,8 +10,15 @@ export interface TyperEvent {
   text: string;
 }
 
+export const DEFAULT_PHRASES = [
+  "yes", "no", "thank you", "I need help", "I am in pain", "I am thirsty",
+  "please wait", "I need the bathroom", "I am tired", "I love you", "please call the nurse", "turn me over please",
+];
+
 export class Typer {
   text = "";
+  phrases: string[] = DEFAULT_PHRASES;
+  inPhrases = false;
   root!: Node;
   node!: Node;
   private path: Node[] = [];
@@ -36,7 +43,17 @@ export class Typer {
   }
 
   items(): Item[] {
-    return this.lex.board(this.prefix, { predictions: this.opts.predictions, hasText: this.text.length > 0 });
+    if (this.inPhrases) {
+      const back = { id: "back", label: "back to letters", weight: 1 };
+      return [back, ...this.phrases.map((p, i) => ({ id: "p:" + i, label: p, weight: 1 }))];
+    }
+    const items = this.lex.board(this.prefix, { predictions: this.opts.predictions, hasText: this.text.length > 0 });
+    if (!this.text && this.phrases.length) {
+      // the quick-phrase list only appears on an empty line; scale others to leave room
+      for (const it of items) it.weight *= 0.92;
+      items.push({ id: "phrases", label: "quick phrases", weight: 0.08 });
+    }
+    return items;
   }
 
   private rebuild() {
@@ -52,6 +69,11 @@ export class Typer {
         this.node = this.path.pop()!;
         return { kind: "moved", text: this.text };
       }
+      if (this.inPhrases) {
+        this.inPhrases = false;
+        this.rebuild();
+        return { kind: "moved", text: this.text };
+      }
       if (!this.undo.length) return { kind: "moved", text: this.text };
       this.text = this.undo.pop()!;
       this.rebuild();
@@ -65,6 +87,16 @@ export class Typer {
   }
 
   apply(item: Item): TyperEvent {
+    if (item.id === "phrases" || item.id === "back") {
+      this.inPhrases = item.id === "phrases";
+      this.rebuild();
+      return { kind: "moved", item, text: this.text };
+    }
+    if (item.id.startsWith("p:")) {
+      this.inPhrases = false;
+      this.rebuild();
+      return { kind: "spoke", item, text: item.label };
+    }
     this.undo.push(this.text);
     if (this.undo.length > 200) this.undo.shift();
     let kind: TyperEvent["kind"] = "typed";
