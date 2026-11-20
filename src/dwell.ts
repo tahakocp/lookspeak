@@ -34,6 +34,14 @@ export class Dwell {
     return this.armed;
   }
 
+  // Start disarmed so whatever the user was doing before (e.g. the last calibration
+  // target) cannot fire until they have looked at the center once.
+  reset() {
+    this.cand = null;
+    this.armed = false;
+    this.centerSince = -1;
+  }
+
   update(d: Dir, t: number): Fired | null {
     if (d === "none") {
       if (this.cand && t - this.lastSeen > this.gapMs) this.cand = null;

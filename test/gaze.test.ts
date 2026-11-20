@@ -74,3 +74,13 @@ test("dwell: a glance shorter than the dwell time never fires", () => {
   for (let t = 0; t < 600; t += 33) assert.equal(d.update("up", t), null);
   for (let t = 600; t < 1000; t += 33) assert.equal(d.update("center", t), null);
 });
+
+test("dwell after reset ignores a held look until center is seen", () => {
+  const d = new Dwell(800);
+  d.reset();
+  for (let t = 0; t < 2000; t += 33) assert.equal(d.update("up", t), null);
+  for (let t = 2000; t < 2200; t += 33) d.update("center", t);
+  let fired = null;
+  for (let t = 2200; t < 3100 && !fired; t += 33) fired = d.update("up", t);
+  assert.equal(fired, "up");
+});
