@@ -11,6 +11,7 @@ export interface SimResult {
   chars: number;
   selections: number;
   perChar: number;
+  choices: Choice[];
 }
 
 function rng(seed: number) {
@@ -27,6 +28,7 @@ export function typeSentence(
   const rand = rng(opts.seed ?? 1);
   const err = opts.errorRate ?? 0;
   let selections = 0;
+  const choices: Choice[] = [];
   const goal = target.trim() + " ";
   let guard = 0;
 
@@ -47,11 +49,12 @@ export function typeSentence(
     let c: Choice = route ? route[0] : "up";
     if (c !== "up" && err > 0 && rand() < err) c = c === "left" ? "right" : "left";
     t.choose(c);
+    choices.push(c);
     selections++;
     if (isLeaf(t.node)) throw new Error("typer left on a leaf");
   }
   selections++; // final "speak" is at least one more selection; count it as one
-  return { chars: goal.length - 1, selections, perChar: selections / (goal.length - 1) };
+  return { chars: goal.length - 1, selections, perChar: selections / (goal.length - 1), choices };
 }
 
 export function typeAll(lex: Lexicon, sentences: string[], opts: Parameters<typeof typeSentence>[2] = {}) {

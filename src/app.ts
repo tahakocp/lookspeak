@@ -98,9 +98,12 @@ function loop() {
   requestAnimationFrame(loop);
 }
 
+const GAZE_LABEL: Record<Dir, string> = { left: "◀ left", right: "right ▶", up: "▲ up", center: "● center", none: "– eyes closed or no face" };
+
 function boardFrame(f: Features | null, t: number) {
   if (!classifier) return;
   const d = classifier.classify(f);
+  if (d !== stats.lastDir) $("#gaze").textContent = GAZE_LABEL[d];
   stats.lastDir = d;
   const fired = dwell.update(d, t);
   paintDwell(t);
