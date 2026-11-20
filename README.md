@@ -62,7 +62,7 @@ npm ci && npm run build && npm run serve
 |---|---|---|
 | board, prediction, undo, quick phrases | `npm test`, 25 unit tests in Node | pass |
 | direction classifier and dwell timing | synthetic noisy feature streams | >97% correct per frame, blinks under 250 ms ignored, one selection per look |
-| whole app with the real model | `npm run e2e`: headless Chrome, MediaPipe Face Landmarker, webcam replaced by test photos | calibration accepted, "hi" + undo typed by gaze, matches the keyboard path, a 350 ms glance does not fire |
+| whole app with the real model | `npm run e2e`: headless Chrome, MediaPipe Face Landmarker, webcam replaced by test photos | calibration accepted, "hi" + undo typed by gaze, matches the keyboard path, a 350 ms glance does not fire; same with the CPU throttled 6x |
 | typing speed | `npm run bench` | table above |
 | face tracking speed | e2e runs in headless Chrome, no real GPU | 13-16 frames/s on an 8-core VM, 8.5 on a GitHub Actions runner |
 | offline | live Pages site loaded once, then Chrome set offline and reloaded | model, word list and calibration load from cache; board works |

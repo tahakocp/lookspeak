@@ -38,6 +38,8 @@ export async function gazePage(browser, url, { width = 1280, height = 720, setti
       return c.captureStream(30);
     };
   }, fixtures, settings ?? null);
+  // E2E_THROTTLE=6 makes the page roughly as slow as an old laptop
+  if (process.env.E2E_THROTTLE) await page.emulateCPUThrottling(Number(process.env.E2E_THROTTLE));
   await page.goto(url);
   await page.waitForFunction(() => window.lookspeak);
   return page;

@@ -119,6 +119,7 @@ const DOT: Record<Target, [string, string]> = {
   up: ["50%", "6%"],
 };
 const STEP_MS = 2400, SKIP_MS = 900; // first part of each step is the eye moving, not fixating
+const MIN_SAMPLES = 16, MAX_STEP_MS = 10000;
 
 function runCalibration(): Promise<void> {
   show("calib");
@@ -126,12 +127,18 @@ function runCalibration(): Promise<void> {
   const msg = $("#calib-msg");
   const samples = Object.fromEntries(TARGETS.map((t) => [t, [] as Features[]])) as Record<Target, Features[]>;
   const plan: Target[] = ["center", "left", "center", "right", "center", "up", "center"];
+  const stepSamples: Features[][] = [];
   return new Promise((resolve) => {
     let i = -1, stepStart = 0;
     const next = (t: number) => {
       i++;
       if (i >= plan.length) {
         onFrame = null;
+        // keep the later half of each step: the eyes have settled by then
+        plan.forEach((target, k) => {
+          const xs = stepSamples[k] ?? [];
+          samples[target].push(...xs.slice(Math.floor(xs.length / 2)));
+        });
         try {
           const mode = settings.mode === "head" ? "head" : "eyes";
           settings.calibration = calibrate(samples, mode);
@@ -155,8 +162,11 @@ function runCalibration(): Promise<void> {
     onFrame = (f, t) => {
       if (i < 0) next(t);
       if (i >= plan.length) return;
-      if (f && t - stepStart > SKIP_MS) samples[plan[i]].push(f);
-      if (t - stepStart > STEP_MS) next(t);
+      if (f && t - stepStart > SKIP_MS) (stepSamples[i] ??= []).push(f);
+      // slow machines may process only a few frames per second: hold the dot until
+      // enough samples arrived so the median is not taken over stale frames
+      const enough = (stepSamples[i]?.length ?? 0) >= MIN_SAMPLES || t - stepStart > MAX_STEP_MS;
+      if (t - stepStart > STEP_MS && enough) next(t);
     };
   });
 }
