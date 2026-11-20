@@ -14,10 +14,10 @@
     "serve": "node scripts/serve.mjs"
   },
   "dependencies": {
-    "@mediapipe/tasks-vision": "1.2.3",
-    "@types/node": "^26.6.6"
+    "@mediapipe/tasks-vision": "1.2.3"
   },
   "devDependencies": {
+    "@types/node": "^26.6.6",
     "esbuild": "0.28.2",
     "puppeteer-core": "^24.0.0",
     "typescript": "^5.9.0"
