@@ -43,10 +43,10 @@ Tips from testing the classifier: sit about an arm's length from the camera, fac
 
 ### Offline or self-hosted
 
-After the first visit the page, the 3.7 MB face model and the word list are cached, and it opens without a network. To run it on a machine that is never online, download `lookspeak-v0.1.0-web.zip` from [Releases](https://github.com/TahaKocpinar/lookspeak/releases), unzip it and serve the folder on localhost (browsers only allow the camera on `https://` or `localhost`):
+After the first visit the page, the 3.7 MB face model and the word list are cached, and it opens without a network. To run it on a machine that is never online, download the `-web.zip` file from the [latest release](https://github.com/TahaKocpinar/lookspeak/releases/latest), unzip it and serve the folder on localhost (browsers only allow the camera on `https://` or `localhost`):
 
 ```sh
-cd lookspeak-v0.1.0-web && python3 -m http.server 8080   # then open http://localhost:8080
+cd lookspeak-v0.1.1-web && python3 -m http.server 8080   # then open http://localhost:8080
 ```
 
 ### Build from source
@@ -64,7 +64,7 @@ npm ci && npm run build && npm run serve
 | direction classifier and dwell timing | synthetic noisy feature streams | >97% correct per frame, blinks under 250 ms ignored, one selection per look |
 | whole app with the real model | `npm run e2e`: headless Chrome, MediaPipe Face Landmarker, webcam replaced by test photos | calibration accepted, "hi" + undo typed by gaze, matches the keyboard path, a 350 ms glance does not fire; same with the CPU throttled 6x |
 | typing speed | `npm run bench` | table above |
-| face tracking speed | e2e runs in headless Chrome, no real GPU | 13-16 frames/s on an 8-core VM, 8.5 on a GitHub Actions runner |
+| face tracking speed | e2e runs in headless Chrome, no real GPU | 13-16 frames/s on an 8-core VM, 5-8.5 on GitHub Actions runners |
 | offline | live Pages site loaded once, then Chrome set offline and reloaded | model, word list and calibration load from cache; board works |
 
 The e2e photos are a public-domain NASA portrait with the irises cut out and moved by 0.9 iris radii ([e2e/make_fixtures.py](e2e/make_fixtures.py)). MediaPipe's gaze blendshapes read them as expected (horizontal score +0.22 straight ahead, +0.80 looking left, -0.53 looking right; vertical +0.06 to +0.23 looking up), which lets the test drive the real pipeline without a person.
