@@ -8,7 +8,7 @@ Type and speak with your eyes using the webcam you already have. It runs in the 
 
 <sub>Recorded in headless Chrome at 2x speed. The "user" is a test photo with digitally moved irises (see [How it is tested](#how-it-is-tested)), hidden from the recording.</sub>
 
-lookspeak is for people who cannot speak or type with their hands, such as people with ALS/MND, cerebral palsy, locked-in syndrome or after a stroke, and for the family and carers who set it up. Dedicated eye-gaze communication devices cost around [$12,000](https://alsnetwork.org/understanding-als/living-with-als/guides-for-daily-living/als-communication-devices/) and often wait months for insurance approval. lookspeak is not a replacement for a properly fitted device, but it costs nothing and can be running in two minutes while you wait for one.
+lookspeak is for people who cannot speak or type with their hands, such as people with ALS/MND, cerebral palsy, locked-in syndrome or after a stroke, and for the family and carers who set it up. Speech-generating devices typically cost [around $15,000](https://alsnetwork.org/understanding-als/living-with-als/guides-for-daily-living/als-communication-devices/) and need a speech therapist's evaluation plus insurance authorization before they arrive. lookspeak is not a replacement for a properly fitted device, but it costs nothing and can be running in two minutes while you wait for one.
 
 ## How it works
 
@@ -24,7 +24,7 @@ Webcam eye tracking is too coarse to aim at small keys, so lookspeak only asks f
 | default, user makes 5% wrong looks | 3.24 | 2.8 |
 | default, user makes 10% wrong looks | 4.75 | 1.9 |
 
-Simulated user who always takes the shortest route; words/min assumes 0.8 s dwell plus 0.5 s to look back to the center and read the next screen. Reproduce with `npm run bench`. For comparison, users of commercial eye-gaze keyboards in studies type roughly 5-20 words per minute with a dedicated tracker, so this is slower, and the numbers above are not from real users.
+Simulated user who always takes the shortest route; words/min assumes 0.8 s dwell plus 0.5 s to look back to the center and read the next screen. Reproduce with `npm run bench`. For comparison, dwell-time eye typing with a dedicated tracker and an on-screen keyboard is usually reported at about 5-10 words per minute ([Majaranta & Räihä, 2002](https://doi.org/10.1145/507072.507076)). lookspeak is slower, and the numbers above are not from real users.
 
 Also on the board:
 
@@ -64,7 +64,7 @@ npm ci && npm run build && npm run serve
 | direction classifier and dwell timing | synthetic noisy feature streams | >97% correct per frame, blinks under 250 ms ignored, one selection per look |
 | whole app with the real model | `npm run e2e`: headless Chrome, MediaPipe Face Landmarker, webcam replaced by test photos | calibration accepted, "hi" + undo typed by gaze, matches the keyboard path, a 350 ms glance does not fire |
 | typing speed | `npm run bench` | table above |
-| face tracking speed | e2e run on a 4-core cloud VM, software WebGL | 13-16 frames/s |
+| face tracking speed | e2e run on an 8-core cloud VM, software WebGL | 13-16 frames/s |
 
 The e2e photos are a public-domain NASA portrait with the irises cut out and moved by 0.9 iris radii ([e2e/make_fixtures.py](e2e/make_fixtures.py)). MediaPipe's gaze blendshapes read them as expected (horizontal score +0.22 straight ahead, +0.80 looking left, -0.53 looking right; vertical +0.06 to +0.23 looking up), which lets the test drive the real pipeline without a person.
 
