@@ -5,6 +5,7 @@ import { calibrate, Classifier, defaultCalibration, TARGETS, type Dir, type Feat
 import { Dwell } from "./dwell.ts";
 import { FaceTracker } from "./camera.ts";
 import { load, save, type Settings } from "./settings.ts";
+import { loadLearner, saveLearner } from "./learn.ts";
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector(s) as T;
 const screens = ["start", "calib", "board"] as const;
@@ -66,6 +67,7 @@ function choose(c: Choice) {
   if (ev.kind === "spoke") {
     say(ev.text);
     $("#status").textContent = `said: "${ev.text}"`;
+    if (typer.learner) saveLearner(typer.learner);
   }
   render();
 }
@@ -225,6 +227,20 @@ function openSettings() {
   sel.replaceChildren(new Option("system default", ""), ...voices().map((v) => new Option(v.name, v.name, false, v.name === settings.voice)));
   const ta = $<HTMLTextAreaElement>("#phrases");
   ta.value = typer.phrases.join("\n");
+  const memory = $("#memory");
+  const rememberLabel = () => {
+    const n = typer.learner?.size ?? 0;
+    const p = typer.learner?.phrases.size ?? 0;
+    if (!n && !p) return "No words remembered yet. After you speak a few sentences, names and repeated phrases will need fewer looks. They stay on this device.";
+    const bits = [n ? `${n} word${n === 1 ? "" : "s"}` : "", p ? `${p} quick phrase${p === 1 ? "" : "s"}` : ""].filter(Boolean);
+    return `Remembered ${bits.join(" and ")} on this device. Nothing is uploaded.`;
+  };
+  memory.textContent = rememberLabel();
+  $("#forget").onclick = () => {
+    typer.learner?.clear();
+    if (typer.learner) saveLearner(typer.learner);
+    memory.textContent = rememberLabel();
+  };
   dlg.onclose = () => {
     settings.voice = sel.value;
     const lines = ta.value.split("\n").map((s) => s.trim()).filter(Boolean);
@@ -244,7 +260,7 @@ function openSettings() {
 
 async function main() {
   const lex = Lexicon.parse(await (await fetch("words.txt")).text());
-  typer = new Typer(lex);
+  typer = new Typer(lex, { predictions: 4, layout: "huffman" }, loadLearner());
   if (settings.phrases) typer.phrases = settings.phrases;
   for (const b of document.querySelectorAll<HTMLButtonElement>("[data-mode]")) b.onclick = () => begin(b.dataset.mode as Settings["mode"]);
   $("#left").onclick = () => choose("left");

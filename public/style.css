@@ -39,4 +39,6 @@ dialog { background: var(--zone); color: var(--fg); border: 2px solid var(--hi);
 dialog label { display: block; margin: .8rem 0; }
 dialog input[type=range], dialog select, dialog textarea { width: 100%; font: inherit; }
 dialog menu { display: flex; justify-content: space-between; padding: 0; }
+dialog .note { color: var(--dim); font-size: .95rem; margin: .8rem 0 .35rem; }
+dialog #forget { margin: 0 0 1rem; }
 #gaze { color: var(--acc); min-width: 7em; font-weight: 600; }

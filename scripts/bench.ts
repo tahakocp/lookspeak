@@ -3,6 +3,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { Lexicon } from "../src/lexicon.ts";
 import { typeAll } from "../src/simulate.ts";
+import { Learner } from "../src/learn.ts";
 
 const URL_ = "https://www.yorku.ca/mack/phrases2.txt";
 const cache = new URL("../node_modules/.cache/phrases2.txt", import.meta.url);
@@ -40,3 +41,20 @@ for (const [name, o] of rows) {
   console.log(`| ${name} | ${r.perChar.toFixed(2)} | ${cpm.toFixed(1)} | ${(cpm / 5).toFixed(1)} |`);
   if (process.env.VERBOSE) console.error(`${name}: ${(performance.now() - t0).toFixed(0)} ms`);
 }
+
+// Same phrase set again, but the board remembers what was already typed.
+const learned = new Learner();
+const firstPass = typeAll(lex, phrases, { learner: learned });
+const secondPass = typeAll(lex, phrases, { learner: learned });
+const cpm1 = 60 / (firstPass.perChar * secPerSel);
+const cpm2 = 60 / (secondPass.perChar * secPerSel);
+console.log(`| same, second pass with memory of the first | ${secondPass.perChar.toFixed(2)} | ${cpm2.toFixed(1)} | ${(cpm2 / 5).toFixed(1)} |`);
+
+// A short personal vocabulary typed five times: first vs last repetition.
+const care = ["i need water", "please call the nurse", "turn me over please", "call zbigniew now"];
+const personal = new Learner();
+const passes = [];
+for (let i = 0; i < 5; i++) {
+  passes.push(typeAll(lex, care, { learner: personal, seed: 10 + i * 20 }));
+}
+console.log(`\nPersonal set (${care.length} sentences) first pass ${passes[0].perChar.toFixed(2)} looks/char, fifth pass ${passes[4].perChar.toFixed(2)}`);

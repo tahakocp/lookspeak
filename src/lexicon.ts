@@ -13,7 +13,10 @@ export class Lexicon {
   private cum: Float64Array; // cum[i] = sum of counts[0..i)
   private topAll: number[];
 
-  constructor(entries: [string, number][]) {
+  readonly letters: string[];
+
+  constructor(entries: [string, number][], letters: string[] = LETTERS) {
+    this.letters = letters;
     const sorted = [...entries].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
     this.words = sorted.map((e) => e[0]);
     this.counts = Float64Array.from(sorted.map((e) => e[1]));
@@ -22,13 +25,13 @@ export class Lexicon {
     this.topAll = [...this.counts.keys()].sort((a, b) => this.counts[b] - this.counts[a]).slice(0, 64);
   }
 
-  static parse(text: string): Lexicon {
+  static parse(text: string, letters: string[] = LETTERS): Lexicon {
     const entries: [string, number][] = [];
     for (const line of text.split("\n")) {
       const [w, c] = line.trim().split(/\s+/);
       if (w && c) entries.push([w, Number(c)]);
     }
-    return new Lexicon(entries);
+    return new Lexicon(entries, letters);
   }
 
   private lower(p: string): number {
@@ -72,30 +75,44 @@ export class Lexicon {
   }
 
   // Items for one typing step, weighted by how likely each is to be the next thing typed.
-  board(prefix: string, opt: BoardOptions): Item[] {
+  // `user` holds the user's own evidence for words starting with prefix (see Learner);
+  // it is mixed in with a weight that grows with the amount of evidence.
+  board(prefix: string, opt: BoardOptions, user?: Map<string, number>): Item[] {
     const control = opt.hasText ? 0.05 : 0;
     const floor = 0.002; // unknown words and names must stay reachable
     const total = this.mass(prefix);
+    let n = 0;
+    if (user) for (const c of user.values()) n += c;
+    const lam = !n ? 0 : !total ? 1 : Math.min(0.85, n / (n + 3));
+    const wb = total ? (1 - lam) / total : 0;
+    const wu = n ? lam / n : 0;
+    const p = (w: string) => this.count(w) * wb + (user?.get(w) ?? 0) * wu;
+    const userMass = (pre: string) => {
+      let m = 0;
+      if (user) for (const [w, c] of user) if (w.startsWith(pre)) m += c;
+      return m;
+    };
     const items: Item[] = [];
 
     // A word only earns its own item when it saves at least two selections' worth of letters.
-    const preds = total > 0
-      ? this.top(prefix, opt.predictions + 4).filter((w) => w.length >= prefix.length + 2).slice(0, opt.predictions)
-      : [];
+    const pool = new Set(total ? this.top(prefix, opt.predictions + 4) : []);
+    if (user) for (const w of user.keys()) pool.add(w);
+    const preds = [...pool]
+      .filter((w) => w.length >= prefix.length + 2)
+      .sort((a, b) => p(b) - p(a) || (a < b ? -1 : 1))
+      .slice(0, opt.predictions);
     const predMass = new Map<string, number>();
     for (const w of preds) {
-      const c = this.count(w);
-      items.push({ id: "w:" + w, label: w, weight: total ? c / total : 0 });
+      items.push({ id: "w:" + w, label: w, weight: p(w) });
       const key = w[prefix.length];
-      predMass.set(key, (predMass.get(key) ?? 0) + c);
+      predMass.set(key, (predMass.get(key) ?? 0) + p(w));
     }
 
-    const endWord = total ? this.count(prefix) / total : 0;
-    for (const ch of LETTERS) {
-      const m = total ? (this.mass(prefix + ch) - (predMass.get(ch) ?? 0)) / total : 0;
+    for (const ch of this.letters) {
+      const m = this.mass(prefix + ch) * wb + userMass(prefix + ch) * wu - (predMass.get(ch) ?? 0);
       items.push({ id: "c:" + ch, label: ch, weight: Math.max(m, 0) });
     }
-    items.push({ id: "space", label: "space", weight: prefix ? endWord : 0 });
+    items.push({ id: "space", label: "space", weight: prefix ? p(prefix) : 0 });
 
     let sum = items.reduce((s, it) => s + it.weight, 0);
     if (sum === 0) {

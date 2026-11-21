@@ -22,13 +22,15 @@ Webcam eye tracking is too coarse to aim at small keys, so lookspeak only asks f
 | frequency-weighted halves | 2.61 | 3.5 |
 | frequency-weighted + 4 word predictions (default) | **2.48** | 3.7 |
 | default, user makes 5% wrong looks | 3.24 | 2.8 |
-| default, user makes 10% wrong looks | 4.75 | 1.9 |
+| default, user makes 10% wrong looks | 4.74 | 1.9 |
+| default, same phrases again with memory of the first pass | **1.77** | 5.2 |
 
-Simulated user who always takes the shortest route; words/min assumes 0.8 s dwell plus 0.5 s to look back to the center and read the next screen. Reproduce with `npm run bench`. For comparison, dwell-time eye typing with a dedicated tracker and an on-screen keyboard is usually reported at about 5-10 words per minute ([Majaranta & Räihä, 2002](https://doi.org/10.1145/507072.507076)). lookspeak is slower, and the numbers above are not from real users.
+Simulated user who always takes the shortest route; words/min assumes 0.8 s dwell plus 0.5 s to look back to the center and read the next screen. Reproduce with `npm run bench`. The last row is the same 500 phrases typed a second time, after the board has remembered the first pass on the device; a first visit is still 2.48. A short personal set of four sentences (including a name the dictionary does not have) went from 2.65 looks per character on the first pass to 0.67 on the fifth. For comparison, dwell-time eye typing with a dedicated tracker and an on-screen keyboard is usually reported at about 5-10 words per minute ([Majaranta & Räihä, 2002](https://doi.org/10.1145/507072.507076)). The numbers above are not from real users.
 
 Also on the board:
 
-- **Quick phrases**: on an empty line, one item opens a list of 12 phrases ("yes", "no", "I am in pain", "please call the nurse"...) that are spoken as soon as they are picked. Edit the list in Settings.
+- **Quick phrases**: on an empty line, one item opens a list of 12 phrases ("yes", "no", "I am in pain", "please call the nurse"...) that are spoken as soon as they are picked. Edit the list in Settings. Phrases you pick often move towards the top.
+- **Memory**: words you have spoken stay on this device, so names the dictionary does not have and the word you usually say next are offered sooner. Forget them in Settings.
 - **Head mode** for people whose eye movement is limited but who can turn their head a little.
 - **Keys or switches**: left/right/up arrows, `1`/`2`, or a click on a half. Most USB accessibility switches can be set to send these keys.
 - **Speech** with any voice installed on your system (Settings).
@@ -43,10 +45,10 @@ Tips from testing the classifier: sit about an arm's length from the camera, fac
 
 ### Offline or self-hosted
 
-After the first visit the page, the 3.7 MB face model and the word list are cached, and it opens without a network. To run it on a machine that is never online, download the `-web.zip` file from the [latest release](https://github.com/tahakocp/lookspeak/releases/latest), unzip it and serve the folder on localhost (browsers only allow the camera on `https://` or `localhost`):
+After the first visit, the page, the 3.7 MB face model and the word list are cached, and it opens without a network. To run it on a machine that is never online, download the `-web.zip` file from the [latest release](https://github.com/tahakocp/lookspeak/releases/latest), unzip it and serve the folder on localhost (browsers only allow the camera on `https://` or `localhost`):
 
 ```sh
-cd lookspeak-v0.1.1-web && python3 -m http.server 8080   # then open http://localhost:8080
+cd lookspeak-v0.2.0-web && python3 -m http.server 8080   # then open http://localhost:8080
 ```
 
 ### Build from source
@@ -60,7 +62,7 @@ npm ci && npm run build && npm run serve
 
 | what | how | result |
 |---|---|---|
-| board, prediction, undo, quick phrases | `npm test`, 25 unit tests in Node | pass |
+| board, prediction, memory, undo, quick phrases | `npm test`, 33 unit tests in Node | pass |
 | direction classifier and dwell timing | synthetic noisy feature streams | >97% correct per frame, blinks under 250 ms ignored, one selection per look |
 | whole app with the real model | `npm run e2e`: headless Chrome, MediaPipe Face Landmarker, webcam replaced by test photos | calibration accepted, "hi" + undo typed by gaze, matches the keyboard path, a 350 ms glance does not fire; same with the CPU throttled 6x |
 | typing speed | `npm run bench` | table above |
@@ -73,12 +75,12 @@ What has not been tested: real people, real webcams, glasses, low light, nystagm
 
 ## Privacy
 
-Video frames go into the MediaPipe model inside the page and nothing else. There is no server, analytics or account. Settings and calibration live in your browser's local storage.
+Video frames go into the MediaPipe model inside the page and nothing else. There is no server, analytics or account. Settings, calibration and the words you have spoken live in your browser's local storage. You can forget the remembered words in Settings.
 
 ## Limitations
 
 - English only for now (word list and letters). The board code is language-neutral; a new language needs a frequency list.
-- Word prediction uses single-word frequencies, not the previous word.
+- On a first visit the board only knows the public word list. Memory helps after you have spoken a few sentences, and only in that browser.
 - Speech quality depends on the voices your OS provides; some browsers need a network for their best voices.
 - Not a medical device. Do not rely on it as the only way to call for help.
 

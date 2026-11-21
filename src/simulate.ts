@@ -1,6 +1,7 @@
 import { isLeaf, pathTo } from "./huffman.ts";
 import { Typer, type Choice, type Layout } from "./typer.ts";
 import { Lexicon } from "./lexicon.ts";
+import { Learner } from "./learn.ts";
 
 // Plays a user who knows the target sentence and always takes the shortest route:
 // a predicted word when the whole remaining word is offered, otherwise the next letter.
@@ -22,9 +23,9 @@ function rng(seed: number) {
 export function typeSentence(
   lex: Lexicon,
   target: string,
-  opts: { layout?: Layout; predictions?: number; errorRate?: number; seed?: number } = {},
+  opts: { layout?: Layout; predictions?: number; errorRate?: number; seed?: number; learner?: Learner } = {},
 ): SimResult {
-  const t = new Typer(lex, { layout: opts.layout ?? "huffman", predictions: opts.predictions ?? 4 });
+  const t = new Typer(lex, { layout: opts.layout ?? "huffman", predictions: opts.predictions ?? 4 }, opts.learner ?? null);
   const rand = rng(opts.seed ?? 1);
   const err = opts.errorRate ?? 0;
   let selections = 0;
@@ -54,6 +55,7 @@ export function typeSentence(
     if (isLeaf(t.node)) throw new Error("typer left on a leaf");
   }
   selections++; // final "speak" is at least one more selection; count it as one
+  opts.learner?.observe(goal, (x) => t.words(x));
   return { chars: goal.length - 1, selections, perChar: selections / (goal.length - 1), choices };
 }
 

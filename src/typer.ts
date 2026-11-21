@@ -1,5 +1,6 @@
 import { buildTree, buildUniform, isLeaf, type Item, type Node } from "./huffman.ts";
 import { Lexicon } from "./lexicon.ts";
+import { Learner } from "./learn.ts";
 
 export type Choice = "left" | "right" | "up";
 export type Layout = "huffman" | "uniform";
@@ -26,11 +27,28 @@ export class Typer {
 
   private lex: Lexicon;
   private opts: { predictions: number; layout: Layout };
+  learner: Learner | null;
 
-  constructor(lex: Lexicon, opts: { predictions: number; layout: Layout } = { predictions: 4, layout: "huffman" }) {
+  constructor(
+    lex: Lexicon,
+    opts: { predictions: number; layout: Layout } = { predictions: 4, layout: "huffman" },
+    learner: Learner | null = null,
+  ) {
     this.lex = lex;
     this.opts = opts;
+    this.learner = learner;
     this.rebuild();
+  }
+
+  // Words of a sentence that the board could have typed, in order.
+  words(sentence: string): string[] {
+    const ok = new Set(this.lex.letters);
+    return sentence.toLowerCase().split(/\s+/).filter((w) => w && [...w].every((ch) => ok.has(ch)));
+  }
+
+  get previousWord(): string {
+    const ws = this.words(this.text.slice(0, this.text.length - this.prefix.length));
+    return ws[ws.length - 1] ?? "";
   }
 
   get prefix(): string {
@@ -45,9 +63,12 @@ export class Typer {
   items(): Item[] {
     if (this.inPhrases) {
       const back = { id: "back", label: "back to letters", weight: 1 };
-      return [back, ...this.phrases.map((p, i) => ({ id: "p:" + i, label: p, weight: 1 }))];
+      // phrases you pick often move towards the top of the tree
+      const uses = (p: string) => this.learner?.phrases.get(p) ?? 0;
+      return [back, ...this.phrases.map((p, i) => ({ id: "p:" + i, label: p, weight: 1 + uses(p) }))];
     }
-    const items = this.lex.board(this.prefix, { predictions: this.opts.predictions, hasText: this.text.length > 0 });
+    const user = this.learner?.candidates(this.prefix, this.previousWord);
+    const items = this.lex.board(this.prefix, { predictions: this.opts.predictions, hasText: this.text.length > 0 }, user);
     if (!this.text && this.phrases.length) {
       // the quick-phrase list only appears on an empty line; scale others to leave room
       for (const it of items) it.weight *= 0.92;
@@ -93,6 +114,7 @@ export class Typer {
       return { kind: "moved", item, text: this.text };
     }
     if (item.id.startsWith("p:")) {
+      this.learner?.usePhrase(item.label);
       this.inPhrases = false;
       this.rebuild();
       return { kind: "spoke", item, text: item.label };
@@ -108,6 +130,7 @@ export class Typer {
     else if (id === "delete") this.text = this.text.slice(0, -1);
     else if (id === "speak") {
       spoken = this.text.trim();
+      this.learner?.observe(spoken, (x) => this.words(x));
       this.text = "";
       kind = "spoke";
     }
