@@ -88,7 +88,7 @@ Video frames go into the MediaPipe model inside the page and nothing else. There
 
 Face tracking: [MediaPipe Face Landmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker) (Apache-2.0). Word frequencies: [hermitdave/FrequencyWords](https://github.com/hermitdave/FrequencyWords), from OpenSubtitles 2018 (CC BY-SA 4.0, see [data/README.md](data/README.md)). Benchmark phrases: MacKenzie & Soukoreff, "Phrase sets for evaluating text entry techniques", CHI 2003, downloaded at bench time. The two-halves interaction follows Google's [Look to Speak](https://experiments.withgoogle.com/looktospeak) Android app; lookspeak is unrelated to Google.
 
-Built with help from AI coding tools; the tests and numbers above are from real runs.
+The tests and numbers above are from real runs.
 
 ## License
 
