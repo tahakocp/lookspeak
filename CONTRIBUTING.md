@@ -12,15 +12,18 @@ npm run build     # writes dist/, downloads the face model once (checksum-verifi
 npm run serve     # http://localhost:8080
 npm run e2e       # headless Chrome, needs google-chrome or chromium
 npm run bench     # selections per character on the MacKenzie phrase set
+npm run bench:lm  # same with the language model (downloads 182 MB once, ~6 min)
+npm run e2e:lm    # the language model in headless Chrome (same download)
 ```
 
 Node 22.18 or newer runs the TypeScript sources directly (type stripping), so tests have no build step. Keep code to erasable TypeScript: no enums, no parameter properties.
 
-A change to the board, the lexicon weights or the dwell logic should come with the `npm run bench` table before and after.
+A change to the board, the lexicon weights, the language model wiring or the dwell logic should come with the `npm run bench` (or `bench:lm`) table before and after. The context weight was tuned on phrases 1-100; if you tune anything, tune on those and report 101-500 separately.
 
 ## Good first issues
 
-- Bigram word prediction (next word given the previous one). The bench shows how much it helps.
+- Try the language model on a real GPU and report the "last answer" time shown in Settings.
+- A small fallback model for machines that cannot spare 182 MB (a word trigram table would be a few MB).
 - More languages: a word list and letter set per language; the board code is language-neutral.
 - A "scan" mode for single-switch users (one key or one blink steps through halves automatically).
 - High-contrast and large-print themes.

@@ -12,10 +12,11 @@ const fixtures = Object.fromEntries(
   ["center", "look-left", "look-right", "look-up"].map((n) => [n, "data:image/jpeg;base64," + readFileSync(new URL(`fixtures/${n}.jpg`, import.meta.url)).toString("base64")]),
 );
 
-export async function start() {
+export async function start({ host = "127.0.0.1", userDataDir } = {}) {
   const srv = await serve("dist");
-  const url = `http://127.0.0.1:${srv.address().port}/`;
-  const browser = await puppeteer.launch({ executablePath: chrome, headless: true, args: ["--no-sandbox"] });
+  const url = `http://${host}:${srv.address().port}/`;
+  const args = ["--no-sandbox", ...(process.env.CHROME_ARGS ?? "").split(" ").filter(Boolean)];
+  const browser = await puppeteer.launch({ executablePath: chrome, headless: true, args, userDataDir });
   return { url, browser, close: async () => { await browser.close(); srv.close(); } };
 }
 
