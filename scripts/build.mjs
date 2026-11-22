@@ -41,6 +41,21 @@ await build({
   legalComments: "linked",
 });
 
+// The language model runtime is only fetched when the user turns it on, so it is
+// kept out of the precache list (lm/ is cached by the service worker on first use).
+await build({
+  entryPoints: ["src/lm-worker.ts"],
+  bundle: true,
+  format: "esm",
+  target: "es2022",
+  minify: true,
+  outfile: "dist/lm/lm-worker.js",
+  legalComments: "linked",
+  logOverride: { "unsupported-dynamic-import": "silent" },
+});
+const ortDir = "node_modules/onnxruntime-web/dist";
+for (const f of ["ort-wasm-simd-threaded.asyncify.mjs", "ort-wasm-simd-threaded.asyncify.wasm"]) cpSync(join(ortDir, f), join("dist/lm", f));
+
 const files = [];
 (function walk(d) {
   for (const f of readdirSync(d)) {
@@ -54,7 +69,7 @@ for (const f of files.sort()) hash.update(f).update(readFileSync(join("dist", f)
 const version = hash.digest("hex").slice(0, 12);
 const sw = readFileSync("src/sw.js", "utf8")
   .replace("__VERSION__", version)
-  .replace("__FILES__", JSON.stringify(["./", ...files.filter((f) => f !== "index.html")]));
+  .replace("__FILES__", JSON.stringify(["./", ...files.filter((f) => f !== "index.html" && !f.startsWith("lm/"))]));
 writeFileSync("dist/sw.js", sw);
 const kb = files.reduce((s, f) => s + statSync(join("dist", f)).size, 0) / 1024;
 console.log(`dist/ ${files.length} files, ${(kb / 1024).toFixed(1)} MB, cache ${version}`);

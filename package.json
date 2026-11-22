@@ -11,10 +11,14 @@
     "typecheck": "tsc --noEmit",
     "bench": "node scripts/bench.ts",
     "e2e": "node e2e/smoke.mjs",
-    "serve": "node scripts/serve.mjs"
+    "serve": "node scripts/serve.mjs",
+    "bench:lm": "node scripts/bench-lm.ts",
+    "e2e:lm": "node e2e/lm.mjs",
+    "record:lm": "node e2e/record-lm.mjs"
   },
   "dependencies": {
-    "@mediapipe/tasks-vision": "1.2.3"
+    "@mediapipe/tasks-vision": "1.2.3",
+    "@huggingface/transformers": "4.3.2"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

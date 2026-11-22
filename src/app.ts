@@ -6,6 +6,8 @@ import { Dwell } from "./dwell.ts";
 import { FaceTracker } from "./camera.ts";
 import { load, save, type Settings } from "./settings.ts";
 import { loadLearner, saveLearner } from "./learn.ts";
+import { SmartPredictions } from "./smart.ts";
+import type { Device } from "./lm.ts";
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector(s) as T;
 const screens = ["start", "calib", "board"] as const;
@@ -15,6 +17,8 @@ function show(id: (typeof screens)[number]) {
 
 const settings: Settings = load();
 let typer: Typer;
+let lex: Lexicon;
+let smart: SmartPredictions | null = null;
 let tracker: FaceTracker | null = null;
 let classifier: Classifier | null = null;
 const dwell = new Dwell(settings.dwellMs);
@@ -66,6 +70,7 @@ function choose(c: Choice) {
   const ev = typer.choose(c);
   if (ev.kind === "spoke") {
     say(ev.text);
+    smart?.spoke(ev.text);
     $("#status").textContent = `said: "${ev.text}"`;
     if (typer.learner) saveLearner(typer.learner);
   }
@@ -207,6 +212,32 @@ async function begin(mode: Settings["mode"]) {
   await startBoard();
 }
 
+// ---------- language model ----------
+const SIZE_NOTE = "Downloads a 117-182 MB language model once (from huggingface.co) and runs it on this device. What you type is never sent anywhere.";
+function smartNote(): string {
+  if (!smart) return SIZE_NOTE;
+  if (smart.state === "failed") return `The language model could not load (${smart.message}). Word frequencies are used instead.`;
+  if (smart.state === "loading") return `Loading the language model${smart.message ? `: ${smart.message}` : "..."}`;
+  return `Language model on (${smart.device}, ${smart.message}${smart.lastMs ? `, last answer ${Math.round(smart.lastMs)} ms` : ""}).`;
+}
+function setSmart(on: boolean) {
+  if (on && !smart) {
+    const force = new URLSearchParams(location.search).get("lm") as Device | null;
+    smart = new SmartPredictions(lex.words, lex.frequencies, force ?? undefined);
+    smart.onUpdate = () => {
+      if (typer.refresh()) render();
+    };
+    smart.onStatus = () => {
+      $("#smart-note").textContent = smartNote();
+    };
+  } else if (!on && smart) {
+    smart.stop();
+    smart = null;
+  }
+  typer.context = smart;
+  typer.refresh();
+}
+
 // ---------- settings dialog ----------
 function openSettings() {
   const dlg = $<HTMLDialogElement>("#settings");
@@ -236,6 +267,15 @@ function openSettings() {
     return `Remembered ${bits.join(" and ")} on this device. Nothing is uploaded.`;
   };
   memory.textContent = rememberLabel();
+  const smartBox = $<HTMLInputElement>("#smart");
+  smartBox.checked = settings.smart;
+  $("#smart-note").textContent = smartNote();
+  smartBox.onchange = () => {
+    settings.smart = smartBox.checked;
+    save(settings);
+    setSmart(settings.smart);
+    $("#smart-note").textContent = smartNote();
+  };
   $("#forget").onclick = () => {
     typer.learner?.clear();
     if (typer.learner) saveLearner(typer.learner);
@@ -259,9 +299,10 @@ function openSettings() {
 }
 
 async function main() {
-  const lex = Lexicon.parse(await (await fetch("words.txt")).text());
+  lex = Lexicon.parse(await (await fetch("words.txt")).text());
   typer = new Typer(lex, { predictions: 4, layout: "huffman" }, loadLearner());
   if (settings.phrases) typer.phrases = settings.phrases;
+  if (settings.smart) setSmart(true);
   for (const b of document.querySelectorAll<HTMLButtonElement>("[data-mode]")) b.onclick = () => begin(b.dataset.mode as Settings["mode"]);
   $("#left").onclick = () => choose("left");
   $("#right").onclick = () => choose("right");
@@ -283,7 +324,13 @@ async function main() {
   requestAnimationFrame(loop);
   if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) navigator.serviceWorker.register("sw.js");
   // read-only hook for the end-to-end test
-  (window as unknown as { lookspeak: unknown }).lookspeak = { stats, get text() { return typer.text; }, get tracker() { return tracker?.delegate ?? null; } };
+  (window as unknown as { lookspeak: unknown }).lookspeak = {
+    stats,
+    get text() { return typer.text; },
+    get tracker() { return tracker?.delegate ?? null; },
+    get lm() { return smart && { state: smart.state, device: smart.device, message: smart.message, lastMs: smart.lastMs }; },
+    get words() { return typer.items().filter((i) => i.id.startsWith("w:")).map((i) => i.label); },
+  };
 }
 
 main();
