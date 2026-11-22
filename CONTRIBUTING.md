@@ -14,6 +14,7 @@ npm run e2e       # headless Chrome, needs google-chrome or chromium
 npm run bench     # selections per character on the MacKenzie phrase set
 npm run bench:lm  # same with the language model (downloads 182 MB once, ~6 min)
 npm run e2e:lm    # the language model in headless Chrome (same download)
+npm run bench:lang  # every board language on 500 Tatoeba sentences (downloads ~70 MB once)
 ```
 
 Node 22.18 or newer runs the TypeScript sources directly (type stripping), so tests have no build step. Keep code to erasable TypeScript: no enums, no parameter properties.
@@ -24,6 +25,6 @@ A change to the board, the lexicon weights, the language model wiring or the dwe
 
 - Try the language model on a real GPU and report the "last answer" time shown in Settings.
 - A small fallback model for machines that cannot spare 182 MB (a word trigram table would be a few MB).
-- More languages: a word list and letter set per language; the board code is language-neutral.
-- A "scan" mode for single-switch users (one key or one blink steps through halves automatically).
+- Another board language: add an entry to `src/languages.ts`, run `node scripts/words.mjs <code>`, and post the `npm run bench:lang` row. Native speakers checking the quick phrases of the existing languages help too.
+- Try long-blink selection on a real face (one-switch mode, Settings) and report what min/max closure times worked.
 - High-contrast and large-print themes.
