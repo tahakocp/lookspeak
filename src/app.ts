@@ -237,6 +237,7 @@ function runCalibration(): Promise<void> {
 // ---------- start ----------
 async function startBoard() {
   show("board");
+  $("#up .hint").textContent = settings.mode === "scan" ? "" : settings.mode === "keys" ? "↑" : settings.mode === "head" ? "tilt up" : "look up";
   render();
   if (settings.mode === "scan") {
     $("#cam").classList.toggle("off", !settings.blinkSelect);
