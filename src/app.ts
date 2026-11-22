@@ -9,6 +9,7 @@ import { load, save, type Settings } from "./settings.ts";
 import { loadLearner, saveLearner } from "./learn.ts";
 import { SmartPredictions } from "./smart.ts";
 import { BlinkSwitch, Scanner } from "./scan.ts";
+import { applyProfile, exportProfile, readProfile } from "./profile.ts";
 import type { Device } from "./lm.ts";
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector(s) as T;
@@ -27,7 +28,7 @@ const dwell = new Dwell(settings.dwellMs);
 const scanner = new Scanner(settings.scanMs);
 const blinkSwitch = new BlinkSwitch();
 let onFrame: ((f: Features | null, t: number) => void) | null = null;
-const stats = { frames: 0, faces: 0, fired: 0, since: performance.now(), fps: 0, lastDir: "none" as Dir, choices: [] as Choice[] };
+const stats = { frames: 0, faces: 0, fired: 0, since: performance.now(), fps: 0, lastDir: "none" as Dir, choices: [] as Choice[], chimes: 0 };
 
 // ---------- speech ----------
 function voices() {
@@ -44,6 +45,26 @@ function say(text: string) {
   if (v) u.voice = v;
   u.rate = settings.rate;
   speechSynthesis.speak(u);
+}
+
+// Three rising beeps, loud enough to be heard from the next room.
+let audio: AudioContext | null = null;
+function chime() {
+  audio ??= new AudioContext();
+  const t0 = audio.currentTime + 0.05;
+  [660, 880, 1100].forEach((hz, i) => {
+    const o = audio!.createOscillator();
+    const g = audio!.createGain();
+    o.frequency.value = hz;
+    const t = t0 + i * 0.35;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.5, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+    o.connect(g).connect(audio!.destination);
+    o.start(t);
+    o.stop(t + 0.32);
+  });
+  stats.chimes++;
 }
 
 // ---------- board rendering ----------
@@ -75,6 +96,11 @@ function choose(c: Choice) {
   stats.choices.push(c);
   if (stats.choices.length > 50) stats.choices.shift();
   const ev = typer.choose(c);
+  if (ev.kind === "chime") {
+    chime();
+    $("#status").textContent = "chime played";
+    if (typer.learner) saveLearner(typer.learner);
+  }
   if (ev.kind === "spoke") {
     say(ev.text);
     smart?.spoke(ev.text);
@@ -299,6 +325,7 @@ function setSmart(on: boolean) {
 // ---------- settings dialog ----------
 function openSettings() {
   const dlg = $<HTMLDialogElement>("#settings");
+  dlg.returnValue = "";
   const bind = (id: string, key: "dwellMs" | "sensitivity" | "rate" | "scanMs", fmt: (v: number) => string) => {
     const inp = $<HTMLInputElement>("#" + id);
     const out = $("#" + id.replace(/^(dwell|sens|rate|scan).*/, "$1") + "-out");
@@ -348,12 +375,51 @@ function openSettings() {
     setSmart(settings.smart);
     $("#smart-note").textContent = smartNote();
   };
+  const profileNote = $("#profile-note");
+  profileNote.textContent = "";
+  $("#export").onclick = () => {
+    const p = exportProfile(settings, typer.learner ?? loadLearner());
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(p, null, 1)], { type: "application/json" }));
+    a.download = `lookspeak-profile-${p.saved.slice(0, 10)}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    profileNote.textContent = "Saved. The file contains the remembered words; keep it private.";
+  };
+  const file = $<HTMLInputElement>("#import-file");
+  $("#import").onclick = () => file.click();
+  file.onchange = async () => {
+    const f = file.files?.[0];
+    file.value = "";
+    if (!f) return;
+    try {
+      const p = readProfile(await f.text());
+      const oldLang = settings.lang;
+      const learner = applyProfile(p, settings, typer.learner ?? loadLearner());
+      saveLearner(learner);
+      typer.learner = learner;
+      const lang = settings.lang;
+      settings.lang = oldLang;
+      save(settings);
+      await setLanguage(lang);
+      typer.phrases = settings.phrases ?? language(settings.lang).phrases;
+      setSmart(settings.smart);
+      dlg.close("profile");
+      // the profile may use another input mode: pick it again on the start screen
+      onFrame = null;
+      show("start");
+      $("#start-status").textContent = `Profile from ${p.saved.slice(0, 10) || "an unknown date"} loaded.`;
+    } catch (e) {
+      profileNote.textContent = (e as Error).message;
+    }
+  };
   $("#forget").onclick = () => {
     typer.learner?.clear();
     if (typer.learner) saveLearner(typer.learner);
     memory.textContent = rememberLabel();
   };
   dlg.onclose = async () => {
+    if (dlg.returnValue === "profile") return; // fields still show the old values
     settings.voice = sel.value;
     const blinkChanged = blinkBox.checked !== settings.blinkSelect;
     settings.blinkSelect = blinkBox.checked;
