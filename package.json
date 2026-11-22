@@ -13,17 +13,19 @@
     "e2e": "node e2e/smoke.mjs && node e2e/scan.mjs",
     "serve": "node scripts/serve.mjs",
     "bench:lm": "node scripts/bench-lm.ts",
+    "bench:lang": "node scripts/bench-lang.ts",
     "e2e:lm": "node e2e/lm.mjs",
     "record:lm": "node e2e/record-lm.mjs"
   },
   "dependencies": {
-    "@mediapipe/tasks-vision": "1.2.3",
-    "@huggingface/transformers": "4.3.2"
+    "@huggingface/transformers": "4.3.2",
+    "@mediapipe/tasks-vision": "1.2.3"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
     "esbuild": "0.28.2",
     "puppeteer-core": "^24.0.0",
+    "seek-bzip": "^2.0.0",
     "typescript": "^5.9.0"
   },
   "engines": {
