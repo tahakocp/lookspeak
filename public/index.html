@@ -17,9 +17,11 @@
   <div class="choices">
     <button data-mode="eyes" class="big">Use my eyes</button>
     <button data-mode="head">Use head turns</button>
-    <button data-mode="keys">Keys or switches only</button>
+    <button data-mode="keys">Keys or two switches</button>
+    <button data-mode="scan">One switch or long blinks</button>
   </div>
   <p class="small">Look <b>left</b> or <b>right</b> to pick the half that holds your letter. Look <b>up</b> to undo. Frequent letters and words need fewer looks.</p>
+  <p class="small">With one switch the zones light up in turn; press when the one you want is lit. A long blink (about half a second) can be the switch.</p>
   <p class="small" id="start-status"></p>
 </main>
 
@@ -49,6 +51,8 @@
     <h2>Settings</h2>
     <label>Dwell time <output id="dwell-out"></output><input id="dwell" type="range" min="300" max="2500" step="50"></label>
     <label>Sensitivity <output id="sens-out"></output><input id="sens" type="range" min="0.1" max="0.9" step="0.05"></label>
+    <label>Scan step (one-switch mode) <output id="scan-out"></output><input id="scan" type="range" min="500" max="3000" step="100"></label>
+    <label class="check"><input type="checkbox" id="blink"> A long blink also picks (uses the camera)</label>
     <label>Voice <select id="voice"></select></label>
     <label>Speech rate <output id="rate-out"></output><input id="rate" type="range" min="0.5" max="2" step="0.1"></label>
     <label>Quick phrases, one per line <textarea id="phrases" rows="6"></textarea></label>

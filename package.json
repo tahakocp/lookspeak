@@ -10,7 +10,7 @@
     "test": "node --test \"test/*.test.ts\"",
     "typecheck": "tsc --noEmit",
     "bench": "node scripts/bench.ts",
-    "e2e": "node e2e/smoke.mjs",
+    "e2e": "node e2e/smoke.mjs && node e2e/scan.mjs",
     "serve": "node scripts/serve.mjs",
     "bench:lm": "node scripts/bench-lm.ts",
     "e2e:lm": "node e2e/lm.mjs",

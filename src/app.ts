@@ -1,4 +1,4 @@
-import { leaves, isLeaf, type Item } from "./huffman.ts";
+import { leaves, isLeaf, pathTo, type Item } from "./huffman.ts";
 import { Lexicon } from "./lexicon.ts";
 import { Typer, DEFAULT_PHRASES, type Choice } from "./typer.ts";
 import { calibrate, Classifier, defaultCalibration, TARGETS, type Dir, type Features, type Target } from "./gaze.ts";
@@ -7,6 +7,7 @@ import { FaceTracker } from "./camera.ts";
 import { load, save, type Settings } from "./settings.ts";
 import { loadLearner, saveLearner } from "./learn.ts";
 import { SmartPredictions } from "./smart.ts";
+import { BlinkSwitch, Scanner } from "./scan.ts";
 import type { Device } from "./lm.ts";
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector(s) as T;
@@ -22,6 +23,8 @@ let smart: SmartPredictions | null = null;
 let tracker: FaceTracker | null = null;
 let classifier: Classifier | null = null;
 const dwell = new Dwell(settings.dwellMs);
+const scanner = new Scanner(settings.scanMs);
+const blinkSwitch = new BlinkSwitch();
 let onFrame: ((f: Features | null, t: number) => void) | null = null;
 const stats = { frames: 0, faces: 0, fired: 0, since: performance.now(), fps: 0, lastDir: "none" as Dir, choices: [] as Choice[] };
 
@@ -75,6 +78,29 @@ function choose(c: Choice) {
     if (typer.learner) saveLearner(typer.learner);
   }
   render();
+}
+
+// A click or key: in one-switch mode any of them means "the lit zone".
+function pick(c: Choice) {
+  if (settings.mode === "scan") choose(scanner.press(performance.now()));
+  else choose(c);
+}
+
+function paintScan(t: number) {
+  const lit = scanner.current(t);
+  for (const z of ["left", "right", "up"] as const) {
+    const el = $("#" + z);
+    el.classList.toggle("active", lit === z);
+    el.style.setProperty("--p", lit === z ? String(scanner.progress(t)) : "0");
+  }
+}
+
+function scanFrame(f: Features | null, t: number) {
+  paintScan(t);
+  if (!settings.blinkSelect || !tracker) return;
+  const closed = blinkSwitch.closedFor(t);
+  $("#gaze").textContent = closed > 150 ? `eyes closed ${(closed / 1000).toFixed(1)} s` : f ? "eyes open" : "no face";
+  if (blinkSwitch.update(f ? f.blink : null, t)) choose(scanner.press(t));
 }
 
 function paintDwell(t: number) {
@@ -182,6 +208,17 @@ function runCalibration(): Promise<void> {
 async function startBoard() {
   show("board");
   render();
+  if (settings.mode === "scan") {
+    $("#cam").classList.toggle("off", !settings.blinkSelect);
+    scanner.stepMs = settings.scanMs;
+    scanner.restart(performance.now());
+    $("#gaze").textContent = "";
+    $("#status").textContent = settings.blinkSelect
+      ? "one switch: a long blink, Space, Enter or a click picks the lit zone"
+      : "one switch: Space, Enter or a click picks the lit zone";
+    onFrame = scanFrame;
+    return;
+  }
   if (settings.mode === "keys") {
     $("#cam").classList.add("off");
     $("#status").textContent = "keys: ← → choose, ↑ undo. Or click a half.";
@@ -196,10 +233,24 @@ async function startBoard() {
   onFrame = boardFrame;
 }
 
+async function ensureTracker(): Promise<boolean> {
+  if (tracker) return true;
+  $("#start-status").textContent = "Loading the face model (3.7 MB, cached after the first visit)...";
+  try {
+    tracker = await FaceTracker.create($<HTMLVideoElement>("#cam"));
+    return true;
+  } catch (e) {
+    $("#start-status").textContent = `Camera or model failed: ${(e as Error).message}. Switch keys still work.`;
+    settings.blinkSelect = false;
+    return false;
+  }
+}
+
 async function begin(mode: Settings["mode"]) {
   settings.mode = mode;
   save(settings);
-  if (mode !== "keys") {
+  if (mode === "scan" && settings.blinkSelect) await ensureTracker();
+  if (mode !== "keys" && mode !== "scan") {
     $("#start-status").textContent = "Loading the face model (3.7 MB, cached after the first visit)...";
     try {
       tracker ??= await FaceTracker.create($<HTMLVideoElement>("#cam"));
@@ -241,9 +292,9 @@ function setSmart(on: boolean) {
 // ---------- settings dialog ----------
 function openSettings() {
   const dlg = $<HTMLDialogElement>("#settings");
-  const bind = (id: string, key: "dwellMs" | "sensitivity" | "rate", fmt: (v: number) => string) => {
+  const bind = (id: string, key: "dwellMs" | "sensitivity" | "rate" | "scanMs", fmt: (v: number) => string) => {
     const inp = $<HTMLInputElement>("#" + id);
-    const out = $("#" + id.replace(/^(dwell|sens|rate).*/, "$1") + "-out");
+    const out = $("#" + id.replace(/^(dwell|sens|rate|scan).*/, "$1") + "-out");
     inp.value = String(settings[key]);
     out.textContent = fmt(settings[key]);
     inp.oninput = () => {
@@ -254,6 +305,9 @@ function openSettings() {
   bind("dwell", "dwellMs", (v) => `${v} ms`);
   bind("sens", "sensitivity", (v) => v.toFixed(2));
   bind("rate", "rate", (v) => v.toFixed(1));
+  bind("scan", "scanMs", (v) => `${(v / 1000).toFixed(1)} s`);
+  const blinkBox = $<HTMLInputElement>("#blink");
+  blinkBox.checked = settings.blinkSelect;
   const sel = $<HTMLSelectElement>("#voice");
   sel.replaceChildren(new Option("system default", ""), ...voices().map((v) => new Option(v.name, v.name, false, v.name === settings.voice)));
   const ta = $<HTMLTextAreaElement>("#phrases");
@@ -281,17 +335,26 @@ function openSettings() {
     if (typer.learner) saveLearner(typer.learner);
     memory.textContent = rememberLabel();
   };
-  dlg.onclose = () => {
+  dlg.onclose = async () => {
     settings.voice = sel.value;
+    const blinkChanged = blinkBox.checked !== settings.blinkSelect;
+    settings.blinkSelect = blinkBox.checked;
     const lines = ta.value.split("\n").map((s) => s.trim()).filter(Boolean);
     settings.phrases = lines.length ? lines : null;
     typer.phrases = settings.phrases ?? DEFAULT_PHRASES;
     save(settings);
     dwell.dwellMs = settings.dwellMs;
     if (classifier) classifier.sensitivity = settings.sensitivity;
+    scanner.stepMs = settings.scanMs;
     if (dlg.returnValue === "mode") {
       onFrame = null;
       show("start");
+      return;
+    }
+    if (settings.mode === "scan" && blinkChanged) {
+      if (settings.blinkSelect) await ensureTracker();
+      save(settings);
+      await startBoard();
     }
     render();
   };
@@ -304,17 +367,23 @@ async function main() {
   if (settings.phrases) typer.phrases = settings.phrases;
   if (settings.smart) setSmart(true);
   for (const b of document.querySelectorAll<HTMLButtonElement>("[data-mode]")) b.onclick = () => begin(b.dataset.mode as Settings["mode"]);
-  $("#left").onclick = () => choose("left");
-  $("#right").onclick = () => choose("right");
-  $("#up").onclick = () => choose("up");
+  $("#left").onclick = () => pick("left");
+  $("#right").onclick = () => pick("right");
+  $("#up").onclick = () => pick("up");
+  $("#output").onclick = () => settings.mode === "scan" && pick("up");
   $("#menu").onclick = openSettings;
   $("#recal").onclick = async () => {
-    if (settings.mode === "keys") return;
+    if (settings.mode === "keys" || settings.mode === "scan") return;
     await runCalibration();
     await startBoard();
   };
   addEventListener("keydown", (e) => {
     if ($("#board").hidden || $<HTMLDialogElement>("#settings").open) return;
+    if (settings.mode === "scan" && (e.key === " " || e.key === "Enter")) {
+      e.preventDefault();
+      if (!e.repeat) pick("left");
+      return;
+    }
     const k: Record<string, Choice> = { ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", "1": "left", "2": "right", Backspace: "up" };
     if (k[e.key]) {
       e.preventDefault();
@@ -329,6 +398,8 @@ async function main() {
     get text() { return typer.text; },
     get tracker() { return tracker?.delegate ?? null; },
     get lm() { return smart && { state: smart.state, device: smart.device, message: smart.message, lastMs: smart.lastMs }; },
+    get lit() { return settings.mode === "scan" ? scanner.current(performance.now()) : null; },
+    route(id: string) { return pathTo(typer.node, id)?.[0] ?? "up"; },
     get words() { return typer.items().filter((i) => i.id.startsWith("w:")).map((i) => i.label); },
   };
 }
