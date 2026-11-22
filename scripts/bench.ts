@@ -48,3 +48,31 @@ for (let i = 0; i < 5; i++) {
   passes.push(typeAll(lex, care, { learner: personal, seed: 10 + i * 20 }));
 }
 console.log(`\nPersonal set (${care.length} sentences) first pass ${passes[0].perChar.toFixed(2)} looks/char, fifth pass ${passes[4].perChar.toFixed(2)}`);
+
+// One switch (a key or a long blink): zones are lit in turn, first half, second
+// half, up. Time is counted in scan steps.
+const scanMs = Number(process.env.SCAN_MS ?? 1000);
+const wpm = (stepsPerChar: number) => (60 / ((stepsPerChar * scanMs) / 1000) / 5).toFixed(1);
+// Baseline: the usual single-switch layout, a row-column grid with the most frequent
+// characters nearest the top left. Reaching row r, column c costs r + c steps (1-based).
+const freq = new Map<string, number>();
+for (const p of phrases) for (const ch of p + " ") freq.set(ch, (freq.get(ch) ?? 0) + 1);
+const byFreq = [...freq.keys()].sort((a, b) => freq.get(b)! - freq.get(a)!);
+const cells: [number, number][] = [];
+for (let r = 1; r <= 6; r++) for (let c = 1; c <= 6; c++) cells.push([r, c]);
+cells.sort((a, b) => a[0] + a[1] - (b[0] + b[1]) || a[0] - b[0]);
+const gridCost = new Map(byFreq.map((ch, i) => [ch, cells[i][0] + cells[i][1]]));
+let gridSteps = 0, gridChars = 0;
+for (const p of phrases) {
+  for (const ch of p) gridSteps += gridCost.get(ch)!;
+  gridSteps += 2; // "speak" in the first cell after the space
+  gridChars += p.length;
+}
+const scan = typeAll(lex, phrases);
+const scan5 = typeAll(lex, phrases, { errorRate: 0.05 });
+console.log(`\nSingle switch, ${scanMs} ms per scan step\n`);
+console.log("| board | scan steps / char | words / min |");
+console.log("|---|---|---|");
+console.log(`| row-column grid, frequency ordered, no prediction | ${(gridSteps / gridChars).toFixed(2)} | ${wpm(gridSteps / gridChars)} |`);
+console.log(`| lookspeak halves + 4 word predictions | ${scan.stepsPerChar.toFixed(2)} | ${wpm(scan.stepsPerChar)} |`);
+console.log(`| same, 5% wrong picks | ${scan5.stepsPerChar.toFixed(2)} | ${wpm(scan5.stepsPerChar)} |`);

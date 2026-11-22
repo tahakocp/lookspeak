@@ -14,7 +14,13 @@ export interface SimResult {
   selections: number;
   perChar: number;
   choices: Choice[];
+  scanSteps: number; // highlight steps a switch user waits through (see scanCost)
 }
+
+// Steps until the wanted zone is highlighted when the board scans first half,
+// second half, up, and starts over after each pick.
+export const SCAN_STEP: Record<Choice, number> = { left: 1, right: 2, up: 3 };
+export const scanCost = (cs: Choice[]) => cs.reduce((s, c) => s + SCAN_STEP[c], 0);
 
 function rng(seed: number) {
   let s = seed >>> 0;
@@ -62,15 +68,17 @@ export function typeSentence(
   }
   selections++; // final "speak" is at least one more selection; count it as one
   opts.learner?.observe(goal, (x) => t.words(x));
-  return { chars: goal.length - 1, selections, perChar: selections / (goal.length - 1), choices };
+  const scanSteps = scanCost(choices) + 1;
+  return { chars: goal.length - 1, selections, perChar: selections / (goal.length - 1), choices, scanSteps };
 }
 
 export function typeAll(lex: Lexicon, sentences: string[], opts: Parameters<typeof typeSentence>[2] = {}) {
-  let chars = 0, selections = 0;
+  let chars = 0, selections = 0, scanSteps = 0;
   sentences.forEach((s, i) => {
     const r = typeSentence(lex, s, { ...opts, seed: (opts.seed ?? 1) + i });
     chars += r.chars;
     selections += r.selections;
+    scanSteps += r.scanSteps;
   });
-  return { chars, selections, perChar: selections / chars };
+  return { chars, selections, perChar: selections / chars, scanSteps, stepsPerChar: scanSteps / chars };
 }
