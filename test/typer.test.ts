@@ -5,6 +5,7 @@ import { Lexicon } from "../src/lexicon.ts";
 import { Typer } from "../src/typer.ts";
 import { pathTo } from "../src/huffman.ts";
 import { typeSentence, typeAll } from "../src/simulate.ts";
+import { Learner } from "../src/learn.ts";
 
 const lex = Lexicon.parse(readFileSync(new URL("../data/words.txt", import.meta.url), "utf8"));
 
@@ -79,5 +80,17 @@ test("up leaves the phrase list", () => {
   const t = new Typer(lex);
   select(t, "phrases");
   t.choose("up");
+  assert.ok(!t.inPhrases);
+});
+
+test("the quick phrase list has a chime that types nothing", () => {
+  const t = new Typer(lex, { predictions: 4, layout: "huffman" }, new Learner());
+  select(t, "phrases");
+  assert.ok(t.inPhrases);
+  for (const c of pathTo(t.node, "chime")!) {
+    const ev = t.choose(c);
+    if (ev.kind !== "moved") assert.equal(ev.kind, "chime");
+  }
+  assert.equal(t.text, "");
   assert.ok(!t.inPhrases);
 });

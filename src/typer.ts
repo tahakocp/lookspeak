@@ -11,9 +11,10 @@ export interface TyperOptions {
   contextWeight?: number; // share of the context model vs. corpus frequencies
 }
 export const CONTEXT_WEIGHT = 0.8;
+const CHIME_KEY = "(chime)"; // usage count kept with the quick phrases
 
 export interface TyperEvent {
-  kind: "moved" | "typed" | "spoke" | "undone";
+  kind: "moved" | "typed" | "spoke" | "undone" | "chime";
   item?: Item;
   text: string;
 }
@@ -100,7 +101,9 @@ export class Typer {
       const back = { id: "back", label: "back to letters", weight: 1 };
       // phrases you pick often move towards the top of the tree
       const uses = (p: string) => this.learner?.phrases.get(p) ?? 0;
-      return [back, ...this.phrases.map((p, i) => ({ id: "p:" + i, label: p, weight: 1 + uses(p) }))];
+      // a sound to get someone's attention, for a user who cannot call out
+      const chime = { id: "chime", label: "chime: call someone", weight: 1 + (this.learner?.phrases.get(CHIME_KEY) ?? 0) };
+      return [back, chime, ...this.phrases.map((p, i) => ({ id: "p:" + i, label: p, weight: 1 + uses(p) }))];
     }
     const user = this.learner?.candidates(this.prefix, this.previousWord);
     const items = this.lexicon().board(this.prefix, { predictions: this.opts.predictions, hasText: this.text.length > 0 }, user);
@@ -147,6 +150,12 @@ export class Typer {
       this.inPhrases = item.id === "phrases";
       this.rebuild();
       return { kind: "moved", item, text: this.text };
+    }
+    if (item.id === "chime") {
+      this.learner?.usePhrase(CHIME_KEY);
+      this.inPhrases = false;
+      this.rebuild();
+      return { kind: "chime", item, text: this.text };
     }
     if (item.id.startsWith("p:")) {
       this.learner?.usePhrase(item.label);
