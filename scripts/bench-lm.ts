@@ -42,12 +42,12 @@ async function predictAll(withHistory: boolean) {
 }
 
 type Opts = Parameters<typeof typeSentence>[2];
-function run(range: [number, number], opts: (i: number) => Opts) {
+function run(range: [number, number], opts: (i: number) => Opts, count: "selections" | "scanSteps" = "selections") {
   let chars = 0, sel = 0;
   for (let i = range[0]; i < range[1]; i++) {
     const r = typeSentence(lex, phrases[i], { seed: 1 + i, ...opts(i) });
     chars += r.chars;
-    sel += r.selections;
+    sel += r[count];
   }
   return sel / chars;
 }
@@ -77,3 +77,9 @@ const twice = (withModel: boolean) => {
   return run(all, (i) => ({ learner: l, ...(withModel ? ctx(plain.out)(i) : {}) }));
 };
 row("all 500, second pass with memory", twice(false), twice(true));
+
+// one switch: scan steps per character instead of looks (1 s per step)
+const scanMs = Number(process.env.SCAN_MS ?? 1000);
+const a = run(all, () => ({}), "scanSteps"), b = run(all, ctx(plain.out), "scanSteps");
+const swpm = (x: number) => (60 / ((x * scanMs) / 1000) / 5).toFixed(1);
+console.log(`\nOne switch, ${scanMs} ms per step: ${a.toFixed(2)} -> ${b.toFixed(2)} scan steps per character (${(100 * (1 - b / a)).toFixed(0)}% fewer), ${swpm(a)} -> ${swpm(b)} words/min`);
