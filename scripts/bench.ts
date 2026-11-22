@@ -1,22 +1,12 @@
 // Measures selections per character on the MacKenzie & Soukoreff (2003) phrase set,
 // the standard benchmark in text-entry research. The set is downloaded, not bundled.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { Lexicon } from "../src/lexicon.ts";
 import { typeAll } from "../src/simulate.ts";
 import { Learner } from "../src/learn.ts";
+import { loadPhrases } from "./phrases.ts";
 
-const URL_ = "https://www.yorku.ca/mack/phrases2.txt";
-const cache = new URL("../node_modules/.cache/phrases2.txt", import.meta.url);
-if (!existsSync(cache)) {
-  mkdirSync(new URL(".", cache), { recursive: true });
-  const r = await fetch(URL_);
-  if (!r.ok) throw new Error(`download failed: ${r.status}`);
-  writeFileSync(cache, await r.text());
-}
-const phrases = readFileSync(cache, "utf8")
-  .split("\n")
-  .map((s) => s.trim().toLowerCase().replace(/[^a-z' ]/g, "").replace(/\s+/g, " "))
-  .filter(Boolean);
+const phrases = await loadPhrases();
 const lex = Lexicon.parse(readFileSync(new URL("../data/words.txt", import.meta.url), "utf8"));
 
 const dwell = Number(process.env.DWELL_MS ?? 800);
