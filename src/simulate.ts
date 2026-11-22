@@ -2,6 +2,7 @@ import { isLeaf, pathTo } from "./huffman.ts";
 import { Typer, type Choice, type Layout } from "./typer.ts";
 import { Lexicon } from "./lexicon.ts";
 import { Learner } from "./learn.ts";
+import type { ContextSource } from "./context.ts";
 
 // Plays a user who knows the target sentence and always takes the shortest route:
 // a predicted word when the whole remaining word is offered, otherwise the next letter.
@@ -23,9 +24,14 @@ function rng(seed: number) {
 export function typeSentence(
   lex: Lexicon,
   target: string,
-  opts: { layout?: Layout; predictions?: number; errorRate?: number; seed?: number; learner?: Learner } = {},
+  opts: { layout?: Layout; predictions?: number; errorRate?: number; seed?: number; learner?: Learner; context?: ContextSource; contextWeight?: number } = {},
 ): SimResult {
-  const t = new Typer(lex, { layout: opts.layout ?? "huffman", predictions: opts.predictions ?? 4 }, opts.learner ?? null);
+  const t = new Typer(
+    lex,
+    { layout: opts.layout ?? "huffman", predictions: opts.predictions ?? 4, contextWeight: opts.contextWeight },
+    opts.learner ?? null,
+    opts.context ?? null,
+  );
   const rand = rng(opts.seed ?? 1);
   const err = opts.errorRate ?? 0;
   let selections = 0;

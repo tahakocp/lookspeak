@@ -1,9 +1,16 @@
 import { buildTree, buildUniform, isLeaf, type Item, type Node } from "./huffman.ts";
 import { Lexicon } from "./lexicon.ts";
 import { Learner } from "./learn.ts";
+import type { ContextSource } from "./context.ts";
 
 export type Choice = "left" | "right" | "up";
 export type Layout = "huffman" | "uniform";
+export interface TyperOptions {
+  predictions: number;
+  layout: Layout;
+  contextWeight?: number; // share of the context model vs. corpus frequencies
+}
+export const CONTEXT_WEIGHT = 0.8;
 
 export interface TyperEvent {
   kind: "moved" | "typed" | "spoke" | "undone";
@@ -26,18 +33,46 @@ export class Typer {
   private undo: string[] = [];
 
   private lex: Lexicon;
-  private opts: { predictions: number; layout: Layout };
+  private opts: TyperOptions;
   learner: Learner | null;
+  context: ContextSource | null = null;
+  private blended: { weights: Float64Array; lex: Lexicon } | null = null;
 
   constructor(
     lex: Lexicon,
-    opts: { predictions: number; layout: Layout } = { predictions: 4, layout: "huffman" },
+    opts: TyperOptions = { predictions: 4, layout: "huffman" },
     learner: Learner | null = null,
+    context: ContextSource | null = null,
   ) {
     this.lex = lex;
     this.opts = opts;
     this.learner = learner;
+    this.context = context;
     this.rebuild();
+  }
+
+  // Words already finished in the current sentence (what the context model sees).
+  get sentence(): string[] {
+    return this.words(this.text.slice(0, this.text.length - this.prefix.length));
+  }
+
+  // The dictionary to use for the next item: weighted by the context model once it
+  // has answered for this sentence, plain corpus frequencies until then.
+  private lexicon(): Lexicon {
+    if (!this.context) return this.lex;
+    const w = this.context.get(this.sentence);
+    if (!w) return this.lex;
+    if (this.blended?.weights === w) return this.blended.lex;
+    this.blended = { weights: w, lex: this.lex.blend(w, this.opts.contextWeight ?? CONTEXT_WEIGHT) };
+    return this.blended.lex;
+  }
+
+  // Rebuild only if nothing has been chosen on this screen yet, so the halves never
+  // change under a look that is already half way.
+  refresh(): boolean {
+    if (this.path.length || this.inPhrases) return false;
+    this.rebuild();
+    return true;
   }
 
   // Words of a sentence that the board could have typed, in order.
@@ -47,7 +82,7 @@ export class Typer {
   }
 
   get previousWord(): string {
-    const ws = this.words(this.text.slice(0, this.text.length - this.prefix.length));
+    const ws = this.sentence;
     return ws[ws.length - 1] ?? "";
   }
 
@@ -68,7 +103,7 @@ export class Typer {
       return [back, ...this.phrases.map((p, i) => ({ id: "p:" + i, label: p, weight: 1 + uses(p) }))];
     }
     const user = this.learner?.candidates(this.prefix, this.previousWord);
-    const items = this.lex.board(this.prefix, { predictions: this.opts.predictions, hasText: this.text.length > 0 }, user);
+    const items = this.lexicon().board(this.prefix, { predictions: this.opts.predictions, hasText: this.text.length > 0 }, user);
     if (!this.text && this.phrases.length) {
       // the quick-phrase list only appears on an empty line; scale others to leave room
       for (const it of items) it.weight *= 0.92;

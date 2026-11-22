@@ -7,6 +7,19 @@ export interface BoardOptions {
   hasText: boolean; // speak/delete only make sense once something is typed
 }
 
+// Indices of the k largest values, largest first; ties keep index order.
+function topK(xs: Float64Array, k: number): number[] {
+  const best: number[] = [];
+  for (let i = 0; i < xs.length; i++) {
+    if (best.length === k && xs[i] <= xs[best[k - 1]]) continue;
+    let j = best.length < k ? best.length : k - 1;
+    while (j > 0 && xs[best[j - 1]] < xs[i]) j--;
+    best.splice(j, 0, i);
+    if (best.length > k) best.pop();
+  }
+  return best;
+}
+
 export class Lexicon {
   readonly words: string[];
   private counts: Float64Array;
@@ -15,14 +28,19 @@ export class Lexicon {
 
   readonly letters: string[];
 
-  constructor(entries: [string, number][], letters: string[] = LETTERS) {
+  constructor(entries: [string, number][] | { words: string[]; counts: Float64Array }, letters: string[] = LETTERS) {
     this.letters = letters;
-    const sorted = [...entries].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
-    this.words = sorted.map((e) => e[0]);
-    this.counts = Float64Array.from(sorted.map((e) => e[1]));
+    if (Array.isArray(entries)) {
+      const sorted = [...entries].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+      this.words = sorted.map((e) => e[0]);
+      this.counts = Float64Array.from(sorted.map((e) => e[1]));
+    } else {
+      this.words = entries.words;
+      this.counts = entries.counts;
+    }
     this.cum = new Float64Array(this.counts.length + 1);
     for (let i = 0; i < this.counts.length; i++) this.cum[i + 1] = this.cum[i] + this.counts[i];
-    this.topAll = [...this.counts.keys()].sort((a, b) => this.counts[b] - this.counts[a]).slice(0, 64);
+    this.topAll = topK(this.counts, 64);
   }
 
   static parse(text: string, letters: string[] = LETTERS): Lexicon {
@@ -32,6 +50,20 @@ export class Lexicon {
       if (w && c) entries.push([w, Number(c)]);
     }
     return new Lexicon(entries, letters);
+  }
+
+  // Corpus counts in `words` order, for building a context model over the same list.
+  get frequencies(): Float64Array {
+    return this.counts;
+  }
+
+  // A copy whose weights mix the corpus frequencies with `context`, a distribution
+  // over the same words in the same order (see context.ts).
+  blend(context: Float64Array, alpha: number): Lexicon {
+    const total = this.cum[this.counts.length];
+    const counts = new Float64Array(this.counts.length);
+    for (let i = 0; i < counts.length; i++) counts[i] = (1 - alpha) * (this.counts[i] / total) + alpha * context[i];
+    return new Lexicon({ words: this.words, counts }, this.letters);
   }
 
   private lower(p: string): number {
