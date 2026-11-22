@@ -1,5 +1,6 @@
 // One-switch mode in headless Chrome: the zones light up in turn and a single key
 // (Space) picks the lit one. Types "hi " by waiting for the right zone each time.
+// Also checks that another board language loads.
 import { start, sleep } from "./harness.mjs";
 
 let failed = false;
@@ -49,6 +50,18 @@ try {
   await page.click("#left");
   const after = await page.evaluate(() => window.lookspeak.text);
   check(after === "hi", `a click while "up" is lit undoes: ${JSON.stringify(after)}`);
+
+  // another board language: Turkish letters, and the language model switch is off
+  const tr = await browser.newPage();
+  tr.on("pageerror", (e) => check(false, "pageerror: " + e.message));
+  await tr.evaluateOnNewDocument(() => localStorage.setItem("lookspeak.v1", JSON.stringify({ mode: "keys", lang: "tr" })));
+  await tr.goto(url);
+  await tr.waitForFunction(() => window.lookspeak);
+  await tr.click('[data-mode="keys"]');
+  await tr.waitForSelector("#board:not([hidden])");
+  const letters = await tr.$$eval(".items span.c", (els) => els.map((e) => e.textContent).join(""));
+  const words = await tr.evaluate(() => window.lookspeak.words);
+  check(/ı/.test(letters) && /ş/.test(letters) && !/q/.test(letters), `Turkish board letters: ${letters}; words offered: ${words.join(", ")}`);
 } catch (e) {
   check(false, e.stack ?? e.message);
 } finally {

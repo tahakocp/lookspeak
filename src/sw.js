@@ -17,10 +17,12 @@ self.addEventListener("activate", (e) => {
 
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
-  // lm/ (28 MB) is only downloaded by people who turn the language model on;
-  // keep it once fetched so it works offline too. The model weights themselves
+  // lm/ (28 MB) is only downloaded by people who turn the language model on, and
+  // lang/ word lists by people who pick another language; keep them once fetched
+  // so they work offline too. The model weights themselves
   // are cached by the model library.
-  const optional = new URL(e.request.url).pathname.includes("/lm/");
+  const path = new URL(e.request.url).pathname;
+  const optional = path.includes("/lm/") || path.includes("/lang/");
   e.respondWith(
     caches.match(e.request, { ignoreSearch: true }).then(
       (hit) =>

@@ -1,6 +1,7 @@
 import { leaves, isLeaf, pathTo, type Item } from "./huffman.ts";
 import { Lexicon } from "./lexicon.ts";
-import { Typer, DEFAULT_PHRASES, type Choice } from "./typer.ts";
+import { Typer, type Choice } from "./typer.ts";
+import { LANGUAGES, language } from "./languages.ts";
 import { calibrate, Classifier, defaultCalibration, TARGETS, type Dir, type Features, type Target } from "./gaze.ts";
 import { Dwell } from "./dwell.ts";
 import { FaceTracker } from "./camera.ts";
@@ -30,12 +31,15 @@ const stats = { frames: 0, faces: 0, fired: 0, since: performance.now(), fps: 0,
 
 // ---------- speech ----------
 function voices() {
-  return speechSynthesis.getVoices().filter((v) => v.lang.toLowerCase().startsWith("en"));
+  return speechSynthesis.getVoices().filter((v) => v.lang.toLowerCase().startsWith(settings.lang));
 }
 function say(text: string) {
   if (!text || !("speechSynthesis" in window)) return;
   speechSynthesis.cancel();
+  // French and Italian elisions are separate words on the board ("l'" + "homme")
+  if (settings.lang === "fr" || settings.lang === "it") text = text.replace(/' /g, "'");
   const u = new SpeechSynthesisUtterance(text);
+  u.lang = settings.lang;
   const v = voices().find((x) => x.name === settings.voice);
   if (v) u.voice = v;
   u.rate = settings.rate;
@@ -264,14 +268,17 @@ async function begin(mode: Settings["mode"]) {
 }
 
 // ---------- language model ----------
+const ENGLISH_ONLY = "Only available for English: the model was trained almost only on English text.";
 const SIZE_NOTE = "Downloads a 117-182 MB language model once (from huggingface.co) and runs it on this device. What you type is never sent anywhere.";
 function smartNote(): string {
+  if (settings.lang !== "en") return ENGLISH_ONLY;
   if (!smart) return SIZE_NOTE;
   if (smart.state === "failed") return `The language model could not load (${smart.message}). Word frequencies are used instead.`;
   if (smart.state === "loading") return `Loading the language model${smart.message ? `: ${smart.message}` : "..."}`;
   return `Language model on (${smart.device}, ${smart.message}${smart.lastMs ? `, last answer ${Math.round(smart.lastMs)} ms` : ""}).`;
 }
 function setSmart(on: boolean) {
+  on &&= settings.lang === "en";
   if (on && !smart) {
     const force = new URLSearchParams(location.search).get("lm") as Device | null;
     smart = new SmartPredictions(lex.words, lex.frequencies, force ?? undefined);
@@ -322,7 +329,18 @@ function openSettings() {
   };
   memory.textContent = rememberLabel();
   const smartBox = $<HTMLInputElement>("#smart");
-  smartBox.checked = settings.smart;
+  smartBox.checked = settings.smart && settings.lang === "en";
+  smartBox.disabled = settings.lang !== "en";
+  const langSel = $<HTMLSelectElement>("#lang");
+  fillLanguages(langSel);
+  langSel.onchange = async () => {
+    await setLanguage(langSel.value);
+    smartBox.checked = settings.smart && settings.lang === "en";
+    smartBox.disabled = settings.lang !== "en";
+    $("#smart-note").textContent = smartNote();
+    sel.replaceChildren(new Option("system default", ""), ...voices().map((v) => new Option(v.name, v.name)));
+    ta.value = typer.phrases.join("\n");
+  };
   $("#smart-note").textContent = smartNote();
   smartBox.onchange = () => {
     settings.smart = smartBox.checked;
@@ -341,7 +359,7 @@ function openSettings() {
     settings.blinkSelect = blinkBox.checked;
     const lines = ta.value.split("\n").map((s) => s.trim()).filter(Boolean);
     settings.phrases = lines.length ? lines : null;
-    typer.phrases = settings.phrases ?? DEFAULT_PHRASES;
+    typer.phrases = settings.phrases ?? language(settings.lang).phrases;
     save(settings);
     dwell.dwellMs = settings.dwellMs;
     if (classifier) classifier.sensitivity = settings.sensitivity;
@@ -361,11 +379,39 @@ function openSettings() {
   dlg.showModal();
 }
 
-async function main() {
-  lex = Lexicon.parse(await (await fetch("words.txt")).text());
-  typer = new Typer(lex, { predictions: 4, layout: "huffman" }, loadLearner());
-  if (settings.phrases) typer.phrases = settings.phrases;
+// ---------- languages ----------
+function fillLanguages(sel: HTMLSelectElement) {
+  sel.replaceChildren(...LANGUAGES.map((l) => new Option(l.name, l.code, false, l.code === settings.lang)));
+}
+
+async function loadLanguage(learner = typer?.learner ?? null) {
+  const L = language(settings.lang);
+  lex = Lexicon.parse(await (await fetch(L.words)).text(), [...L.letters]);
+  typer = new Typer(lex, { predictions: 4, layout: "huffman" }, learner);
+  typer.phrases = settings.phrases ?? L.phrases;
+  $("#board").lang = L.code;
+}
+
+async function setLanguage(code: string) {
+  if (code === settings.lang) return;
+  // a custom phrase list was written for the old language
+  if (settings.phrases && settings.phrases.join("\n") === language(settings.lang).phrases.join("\n")) settings.phrases = null;
+  settings.lang = language(code).code;
+  settings.voice = ""; // voices are per language
+  save(settings);
+  setSmart(false);
+  await loadLanguage();
   if (settings.smart) setSmart(true);
+  for (const id of ["#lang", "#lang-start"]) $<HTMLSelectElement>(id).value = settings.lang;
+  render();
+}
+
+async function main() {
+  await loadLanguage(loadLearner());
+  if (settings.smart) setSmart(true);
+  const startSel = $<HTMLSelectElement>("#lang-start");
+  fillLanguages(startSel);
+  startSel.onchange = () => setLanguage(startSel.value);
   for (const b of document.querySelectorAll<HTMLButtonElement>("[data-mode]")) b.onclick = () => begin(b.dataset.mode as Settings["mode"]);
   $("#left").onclick = () => pick("left");
   $("#right").onclick = () => pick("right");

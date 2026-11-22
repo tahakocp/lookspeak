@@ -24,6 +24,9 @@ await fetchModel();
 rmSync("dist", { recursive: true, force: true });
 cpSync("public", "dist", { recursive: true });
 cpSync("data/words.txt", "dist/words.txt");
+// other languages are fetched only when picked (and then cached, see sw.js)
+mkdirSync("dist/lang", { recursive: true });
+for (const f of readdirSync("data")) if (/^words-[a-z]+\.txt$/.test(f)) cpSync(join("data", f), join("dist/lang", f));
 for (const f of ["LICENSE", "THIRD_PARTY.md"]) cpSync(f, join("dist", f));
 mkdirSync("dist/vendor/wasm", { recursive: true });
 const wasmDir = "node_modules/@mediapipe/tasks-vision/wasm";
@@ -69,7 +72,7 @@ for (const f of files.sort()) hash.update(f).update(readFileSync(join("dist", f)
 const version = hash.digest("hex").slice(0, 12);
 const sw = readFileSync("src/sw.js", "utf8")
   .replace("__VERSION__", version)
-  .replace("__FILES__", JSON.stringify(["./", ...files.filter((f) => f !== "index.html" && !f.startsWith("lm/"))]));
+  .replace("__FILES__", JSON.stringify(["./", ...files.filter((f) => f !== "index.html" && !f.startsWith("lm/") && !f.startsWith("lang/"))]));
 writeFileSync("dist/sw.js", sw);
 const kb = files.reduce((s, f) => s + statSync(join("dist", f)).size, 0) / 1024;
 console.log(`dist/ ${files.length} files, ${(kb / 1024).toFixed(1)} MB, cache ${version}`);

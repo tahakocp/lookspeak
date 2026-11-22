@@ -10,11 +10,12 @@ export interface Settings {
   phrases: string[] | null;
   smart: boolean; // context-aware predictions from the on-device language model
   scanMs: number; // one-switch mode: how long each zone stays lit
+  lang: string; // board language, see languages.ts
   blinkSelect: boolean; // one-switch mode: a long blink seen by the camera also picks
 }
 
 const KEY = "lookspeak.v1";
-export const DEFAULTS: Settings = { mode: "eyes", dwellMs: 800, sensitivity: 0.5, rate: 1, voice: "", calibration: null, phrases: null, smart: false, scanMs: 1200, blinkSelect: false };
+export const DEFAULTS: Settings = { mode: "eyes", dwellMs: 800, sensitivity: 0.5, rate: 1, voice: "", calibration: null, phrases: null, smart: false, scanMs: 1200, blinkSelect: false, lang: "en" };
 
 export function load(): Settings {
   try {
