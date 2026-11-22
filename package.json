@@ -1,6 +1,6 @@
 {
   "name": "lookspeak",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Type and speak with your eyes using any webcam, in the browser, offline.",
   "license": "MIT",
   "type": "module",
